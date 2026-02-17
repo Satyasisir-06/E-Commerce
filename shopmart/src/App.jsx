@@ -41,27 +41,31 @@ function AppContent() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Fetch additional user data from Firestore
+        // 1. Immediately dispatch basic user info to stop the loading spinner
+        dispatch(setUser({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: 'buyer', // Default role while fetching
+        }));
+
+        // 2. Fetch additional user data from Firestore in the background
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
-          const userData = userDoc.data();
-          dispatch(setUser({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            role: userData?.role || 'buyer',
-            ...userData,
-          }));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            dispatch(setUser({
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+              ...userData,
+            }));
+          }
         } catch (error) {
-          console.error('Error fetching user data:', error);
-          dispatch(setUser({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            role: 'buyer',
-          }));
+          console.error('Error fetching supplementary user data:', error);
+          // User is already authenticated with basic info, so we don't need to do anything else here
         }
       } else {
         dispatch(setUser(null));
